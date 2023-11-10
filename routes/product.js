@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { Op } = require('sequelize');
 
 // Importation d'un modèle Sequelize dans une vue.
 // Par défaut, require ira chercher le fichier index.js
@@ -14,6 +15,10 @@ router.get('/', async (req, res) => {
 
         // récupération des produits
         const { count, rows } = await Product.findAndCountAll({
+            where : {
+                stock: {
+                    [Op.gt]: 0 // affiche uniquement les produits en stock
+            }},
             offset: offset,
             limit: pageSize,
         });
@@ -28,6 +33,22 @@ router.get('/', async (req, res) => {
             totalPages: totalPages,
             currentPage: page,
         });
+    }
+    catch(err) {
+        // si une erreur survient, on la log et on renvoie un code 500
+        console.log(err);
+        res.status(500).json(err);
+    }
+})
+
+router.get('/:id', async (req, res) => {
+    try {
+        // récupération du produit
+        const product = await Product.findByPk(req.params.id);
+        if (!product) {
+            return res.status(404).json({ error: 'Produit non trouvé' });
+        }
+        res.json(product);
     }
     catch(err) {
         // si une erreur survient, on la log et on renvoie un code 500
