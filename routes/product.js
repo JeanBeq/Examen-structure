@@ -146,10 +146,8 @@ router.patch('/:id',authenticateUser, async (req, res) => {
         if (!product) {
             return res.status(404).json({ error: 'Produit non trouvé' });
         }
-
         // récupération des paramètres
         const { title, price, description, stock, tags } = req.body;
-
         // mise à jour du produit
         if (title) {
             product.title = title;
