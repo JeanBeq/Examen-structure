@@ -1,30 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { Tag } = require('../models');
+const authenticateUser = require('../middlewares/auth');
 
 router.get('/', async (req, res) => {
     try {
-        // Paramètres de pagination
-        const page = parseInt(req.query.page, 10) || 1;
-        const pageSize = parseInt(req.query.pageSize, 10) || 10;
-        const offset = (page - 1) * pageSize;
-
         // Récupération des tags
-        const { count, rows } = await Tag.findAndCountAll({
-            offset: offset,
-            limit: pageSize,
-        });
-
-        // Calcul du nombre de pages total
-        const totalPages = Math.ceil(count / pageSize);
+        const Tags = await Tag.findAll();
 
         // Envoi de la réponse
-        res.json({
-            tags: rows,
-            totalTags: count,
-            totalPages: totalPages,
-            currentPage: page,
-        });
+        res.json(Tags);
     } catch (err) {
         // Si une erreur survient, on la log et on renvoie un code 500
         console.log(err);
@@ -47,8 +32,12 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-router.post('/', async (req, res) => {
+router.post('/',authenticateUser, async (req, res) => {
     try {
+        // Vérifiez si l'utilisateur est connecté et qu'il est admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Accès interdit. Vous n\'avez pas les autorisations nécessaires.' });
+        }
         // Récupération des paramètres de la requête
         const { name } = req.body;
 
@@ -70,8 +59,12 @@ router.post('/', async (req, res) => {
     }
 });
 
-router.patch('/:id', async (req, res) => {
+router.patch('/:id',authenticateUser, async (req, res) => {
     try {
+        // Vérifiez si l'utilisateur est connecté et qu'il est admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Accès interdit. Vous n\'avez pas les autorisations nécessaires.' });
+        }
         // Récupération du tag
         const tag = await Tag.findByPk(req.params.id);
         if (!tag) {
@@ -96,8 +89,12 @@ router.patch('/:id', async (req, res) => {
     }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id',authenticateUser, async (req, res) => {
     try {
+        // Vérifiez si l'utilisateur est connecté et qu'il est admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Accès interdit. Vous n\'avez pas les autorisations nécessaires.' });
+        }
         // Récupération du tag
         const tag = await Tag.findByPk(req.params.id);
         if (!tag) {

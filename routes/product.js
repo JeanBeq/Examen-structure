@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
+const authenticateUser = require('../middlewares/auth');
 
 // Importation d'un modèle Sequelize dans une vue.
 // Par défaut, require ira chercher le fichier index.js
@@ -52,14 +53,18 @@ router.get('/:id', async (req, res) => {
         res.json(product);
     }
     catch(err) {
-        // si une erreur survient, on la log et on renvoie un code 500
+        // Si une erreur survient, on la log et on renvoie un code 500
         console.log(err);
         res.status(500).json(err);
     }
 })
 
-router.post('/', async (req, res) => {
+router.post('/',authenticateUser, async (req, res) => {
     try {
+        // Vérifiez si l'utilisateur est connecté et qu'il est admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Accès interdit. Vous n\'avez pas les autorisations nécessaires.' });
+        }
         // Récupérez les paramètres de la requête
         const { title, price, description, stock, tags } = req.body;
 
@@ -95,16 +100,21 @@ router.post('/', async (req, res) => {
 
         res.status(201).json({ success: true, product: productWithTags });
     } catch (err) {
-        // Si une erreur survient, loggez-la et renvoyez un code 500
+        // Si une erreur survient, on la log et on renvoie un code 500
         console.log(err);
         res.status(500).json(err);
     }
 });
 
-router.patch('/:id', async (req, res) => {
+router.patch('/:id',authenticateUser, async (req, res) => {
     try {
+        // Vérifiez si l'utilisateur est connecté et qu'il est admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Accès interdit. Vous n\'avez pas les autorisations nécessaires.' });
+        }
         // récupération du produit
         const product = await Product.findByPk(req.params.id);
+        // Vérifiez si le produit existe
         if (!product) {
             return res.status(404).json({ error: 'Produit non trouvé' });
         }
@@ -150,8 +160,12 @@ router.patch('/:id', async (req, res) => {
     }
 })
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id',authenticateUser, async (req, res) => {
     try {
+        // Vérifiez si l'utilisateur est connecté et qu'il est admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Accès interdit. Vous n\'avez pas les autorisations nécessaires.' });
+        }
         // récupération du produit
         const product = await Product.findByPk(req.params.id);
         if (!product) {
