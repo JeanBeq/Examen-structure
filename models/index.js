@@ -14,4 +14,5 @@ sequelize.sync({alter: true});
 
 module.exports = {
     Product: Product,
+    Tag: Tag,
 }

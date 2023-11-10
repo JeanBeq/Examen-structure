@@ -5,6 +5,7 @@ const { Op } = require('sequelize');
 // Importation d'un modèle Sequelize dans une vue.
 // Par défaut, require ira chercher le fichier index.js
 const { Product } = require('../models');
+const { Tag } = require('../models');
 
 router.get('/', async (req, res) => {
     try {
@@ -59,7 +60,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
     try {
-        const { title, price, description, stock } = req.body;
+        const { title, price, description, stock, tags } = req.body;
 
         // Vérifiez si les champs obligatoires sont présents dans la requête
         if (!title || !price || !description || !stock) {
@@ -71,8 +72,53 @@ router.post('/', async (req, res) => {
             title,
             price,
             description,
-            stock
+            stock,
         });
+
+        const tagInstances = await Tag.bulkCreate(tags.map(tagName => ({ name: tagName })), {
+            returning: true,
+            ignoreDuplicates: true,
+        });
+
+        await product.addTags(tagInstances);
+        res.status(201).json({ success: true, product });
+    }
+    catch (err) {
+        // si une erreur survient, on la log et on renvoie un code 500
+        console.log(err);
+        res.status(500).json(err);
+    }
+})
+
+router.patch('/:id', async (req, res) => {
+    try {
+        // récupération du produit
+        const product = await Product.findByPk(req.params.id);
+        if (!product) {
+            return res.status(404).json({ error: 'Produit non trouvé' });
+        }
+
+        // récupération des paramètres
+        const { title, price, description, stock, tags } = req.body;
+
+        // mise à jour du produit
+        if (title) {
+            product.title = title;
+        }
+        if (price) {
+            product.price = price;
+        }
+        if (description) {
+            product.description = description;
+        }
+        if (stock) {
+            product.stock = stock;
+        }
+        if (tags) {
+            product.tags = tags;
+        }
+        await product.save();
+
         res.json(product);
     }
     catch(err) {
