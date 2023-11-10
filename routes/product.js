@@ -16,32 +16,60 @@ router.get('/', async (req, res) => {
         const offset = (page - 1) * pageSize;
 
         // récupération des produits
-        const { count, rows } = await Product.findAndCountAll({
-            where : {
-                stock: {
-                    [Op.gt]: 0 // affiche uniquement les produits en stock
-            }},
-            offset: offset,
-            limit: pageSize,
-        });
+        let products = "";
+        if (req.query.tags) {
+            // Si des tags sont spécifiés, filtrez les produits avec
+            const tags = req.query.tags.split(',');
+
+            products = await Product.findAndCountAll({
+                where: {
+                    stock: {
+                        [Op.gt]: 0 // affiche uniquement les produits en stock
+                    }
+                },
+                include: [
+                    {
+                        model: Tag,
+                        where: {
+                            name: {
+                                [Op.in]: tags
+                            }
+                        }
+                    }
+                ],
+                offset: offset,
+                limit: pageSize,
+            });
+        } else {
+            // Si aucun tag n'est spécifié, récupérez tous les produits
+            products = await Product.findAndCountAll({
+                where: {
+                    stock: {
+                        [Op.gt]: 0 // affiche uniquement les produits en stock
+                    }
+                },
+                offset: offset,
+                limit: pageSize,
+            });
+        }
 
         // calcul du nombre de pages total
-        const totalPages = Math.ceil(count / pageSize);
+        const totalPages = Math.ceil(products.count / pageSize);
 
         // envoi de la réponse
         res.json({
-            products: rows,
-            totalProducts: count,
+            products: products.rows,
+            totalProducts: products.count,
             totalPages: totalPages,
             currentPage: page,
         });
-    }
-    catch(err) {
+    } catch (err) {
         // si une erreur survient, on la log et on renvoie un code 500
         console.log(err);
         res.status(500).json(err);
     }
-})
+});
+
 
 router.get('/:id', async (req, res) => {
     try {
