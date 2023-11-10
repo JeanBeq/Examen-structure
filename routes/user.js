@@ -21,37 +21,54 @@ router.get('/all',authenticateUser, async (req, res) => {
     }
   });
 
-router.post('/signup', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Vérifiez si les champs obligatoires sont présents dans la requête
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Les champs obligatoires ne sont pas fournis.' });
+  router.post('/signup',authenticateUser, async (req, res) => {
+    try {
+      // Récupérez les paramètres de la requête
+      const { email, password, role } = req.body;
+  
+      // Vérifiez si les champs obligatoires sont présents dans la requête
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Les champs obligatoires ne sont pas fournis.' });
+      }
+  
+      // Vérifiez si l'utilisateur existe déjà
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) {
+        return res.status(400).json({ error: 'Email déjà utilisé.' });
+      }
+  
+      // Vérifiez si l'utilisateur actuel a spécifié un rôle
+      if (role && req.user.role === 'admin') {
+        // Vérifiez si le rôle spécifié est valide
+        if (role !== 'admin' && role !== 'user') {
+          return res.status(400).json({ error: 'Le rôle doit être "admin" ou "user".' });
+        }
+  
+        // Hash du mot de passe
+        const hashedPassword = await bcrypt.hash(password, 10);
+  
+        // Créez l'utilisateur avec les informations fournies, y compris le rôle
+        newUser = await User.create({
+          email,
+          password: hashedPassword,
+          role,
+        });
+      } else {
+        // Si l'utilisateur n'a pas le rôle admin, créez l'utilisateur avec le rôle par défaut
+        const hashedPassword = await bcrypt.hash(password, 10);
+        newUser = await User.create({
+          email,
+          password: hashedPassword,
+          role: 'user',
+        });
+      }
+  
+      res.status(201).json({ success: true, user: newUser });
+    } catch (err) {
+      console.log(err);
+      res.status(500).json(err);
     }
-
-    // Vérifiez si l'utilisateur avec cet e-mail existe déjà
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) {
-      return res.status(400).json({ error: 'Cet utilisateur existe déja.' });
-    }
-
-    // Hash du mot de passe
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Créez l'utilisateur avec les informations fournies
-    const newUser = await User.create({
-      email,
-      password: hashedPassword,
-    });
-
-    res.status(201).json({ success: true, user: newUser });
-  } catch (err) {
-    // Si une erreur survient, on la log et on renvoie un code 500
-    console.error(err);
-    res.status(500).json({ error: 'Erreur lors de la création de l\'utilisateur.' });
-  }
-});
+  });
 
 router.post('/login', async (req, res) => {
     try {
