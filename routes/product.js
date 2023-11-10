@@ -38,8 +38,20 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
     try {
-        // on crée un nouveau produit
-        const product = await Product.create(req.body);
+        const { title, price, description, stock } = req.body;
+
+        // Vérifiez si les champs obligatoires sont présents dans la requête
+        if (!title || !price || !description || !stock) {
+            return res.status(400).json({ error: 'Les champs obligatoires ne sont pas fournis.' });
+        }
+
+        // Création du produit
+        const product = await Product.create({
+            title,
+            price,
+            description,
+            stock
+        });
         res.json(product);
     }
     catch(err) {
