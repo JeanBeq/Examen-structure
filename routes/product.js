@@ -60,14 +60,24 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
     try {
+        // Récupérez les paramètres de la requête
         const { title, price, description, stock, tags } = req.body;
 
         // Vérifiez si les champs obligatoires sont présents dans la requête
-        if (!title || !price || !description || !stock) {
+        if (!title || !price || !description || !stock || !tags) {
             return res.status(400).json({ error: 'Les champs obligatoires ne sont pas fournis.' });
         }
 
-        // Création du produit
+        // Récupérez les tags existants dans la base de données
+        const existingTags = await Tag.findAll({ where: { name: tags } });
+
+        // Vérifiez si tous les tags de la requête existent
+        const missingTags = tags.filter(tag => !existingTags.find(existingTag => existingTag.name === tag));
+        if (missingTags.length > 0) {
+            return res.status(400).json({ error: `Les tags suivants n'existent pas : ${missingTags.join(', ')}` });
+        }
+
+        // Créez le produit avec lesinformations fournies
         const product = await Product.create({
             title,
             price,
@@ -75,20 +85,21 @@ router.post('/', async (req, res) => {
             stock,
         });
 
-        const tagInstances = await Tag.bulkCreate(tags.map(tagName => ({ name: tagName })), {
-            returning: true,
-            ignoreDuplicates: true,
+        // Associez les tags valides au produit
+        await product.addTags(existingTags);
+
+        // Renvoyer une réponse JSON avec les détails du produit créé, y compris les tags
+        const productWithTags = await Product.findByPk(product.id, {
+            include: [{ model: Tag, attributes: ['id', 'name'] }],
         });
 
-        await product.addTags(tagInstances);
-        res.status(201).json({ success: true, product });
-    }
-    catch (err) {
-        // si une erreur survient, on la log et on renvoie un code 500
+        res.status(201).json({ success: true, product: productWithTags });
+    } catch (err) {
+        // Si une erreur survient, loggez-la et renvoyez un code 500
         console.log(err);
         res.status(500).json(err);
     }
-})
+});
 
 router.patch('/:id', async (req, res) => {
     try {
@@ -115,11 +126,42 @@ router.patch('/:id', async (req, res) => {
             product.stock = stock;
         }
         if (tags) {
-            product.tags = tags;
+            // Récupération des tags existants dans la base de données
+            const existingTags = await Tag.findAll({ where: { name: tags } });
+
+            // Vérification des tags
+            const missingTags = tags.filter(tag => !existingTags.find(existingTag => existingTag.name === tag));
+            if (missingTags.length > 0) {
+                return res.status(400).json({ error: `Les tags suivants n'existent pas : ${missingTags.join(', ')}` });
+            }
+
+            // Associer les tags au produit
+            await product.setTags(existingTags);
         }
+
         await product.save();
 
         res.json(product);
+    }
+    catch(err) {
+        // si une erreur survient, on la log et on renvoie un code 500
+        console.log(err);
+        res.status(500).json(err);
+    }
+})
+
+router.delete('/:id', async (req, res) => {
+    try {
+        // récupération du produit
+        const product = await Product.findByPk(req.params.id);
+        if (!product) {
+            return res.status(404).json({ error: 'Produit non trouvé' });
+        }
+
+        // suppression du produit
+        await product.destroy();
+
+        res.json({ success: true });
     }
     catch(err) {
         // si une erreur survient, on la log et on renvoie un code 500
